@@ -35,10 +35,25 @@ def generate_credential(iss,sub,cf,nationality):
 #generate EdDSA signature of the merkle root derived from the claims cf,nationality,sub and iss
 def generate_signature(p):
 
-    leaf1 = hashlib.sha512(p["csu"]["cf"].encode("utf-8")).hexdigest()
-    leaf2 = hashlib.sha512(p["csu"]["nationality"].encode("utf-8")).hexdigest()
-    leaf3 = hashlib.sha512(p["sub"].encode("utf-8")).hexdigest()
-    leaf4 = hashlib.sha512(p["iss"].encode("utf-8")).hexdigest()
+    #leaf1 = hashlib.sha512(p["csu"]["cf"].encode("utf-8")).hexdigest()
+    #leaf2 = hashlib.sha512(p["csu"]["nationality"].encode("utf-8")).hexdigest()
+    #leaf3 = hashlib.sha512(p["sub"].encode("utf-8")).hexdigest()
+    #leaf4 = hashlib.sha512(p["iss"].encode("utf-8")).hexdigest()
+
+    leaf1_key = "cf:"
+    leaf2_key = "nationality:"
+    leaf3_key = "sub:"
+    leaf4_key = "iss:"
+
+    leaf1_plaintxt = leaf1_key + p["csu"]["cf"]
+    leaf2_plaintxt = leaf2_key + p["csu"]["nationality"]
+    leaf3_plaintxt = leaf3_key + p["sub"]
+    leaf4_plaintxt = leaf4_key + p["iss"]
+    
+    leaf1 = hashlib.sha512(leaf1_plaintxt.encode("utf-8")).hexdigest()
+    leaf2 = hashlib.sha512(leaf2_plaintxt.encode("utf-8")).hexdigest()
+    leaf3 = hashlib.sha512(leaf3_plaintxt.encode("utf-8")).hexdigest()
+    leaf4 = hashlib.sha512(leaf4_plaintxt.encode("utf-8")).hexdigest()
     
     subtree1 = hashlib.sha512(leaf1.encode("utf-8")+leaf2.encode("utf-8")).hexdigest()
     subtree2 = hashlib.sha512(leaf3.encode("utf-8")+leaf4.encode("utf-8")).hexdigest()
