@@ -28,9 +28,10 @@ def generate_credential(iss,sub,cf,nationality):
 
     vc["payload"] = p
     vc["header"] = h
-    vc["signature"] = generate_signature(p)
+    s,export = generate_signature(p)
+    vc["signature"] = s
 
-    return vc
+    return vc,export
    
 #generate EdDSA signature of the merkle root derived from the claims cf,nationality,sub and iss
 def generate_signature(p):
@@ -73,7 +74,45 @@ def generate_signature(p):
 
     sig_to_export = write_sig(pk,sig,merkle_root)
 
-    return sig_to_export
+    #export parameters for rapid proof generation
+    obj = {}
+    obj_pk = {}
+    obj_sig = {}
+
+    obj_pk["x"] = str(pk.p.x)
+    obj_pk["y"] = str(pk.p.y) 
+    obj["pk"] = obj_pk
+    obj["treeDepth"] = 2
+    obj["merkleRoot"] = hashlib.sha512(subtree1.encode("utf-8")+subtree2.encode("utf-8")).hexdigest()
+    obj["leafDigest"] = leaf1
+    obj["directionSelector"] = 0
+    obj["pathDigest0"] = subtree2
+
+    sig_R, sig_S = sig
+    
+    obj_R = {}  
+    obj_R["x"] = str(sig_R.x)
+    obj_R["y"] = str(sig_R.y)
+
+    obj_sig["R"] = obj_R
+    obj_sig["S"] = sig_S
+
+    obj_A = {}  
+    obj_A["x"] = pk.p.x.n
+    obj_A["y"] = pk.p.y.n
+    obj_sig["A"] = obj_A
+
+    obj_sig["M0"] = merkle_root.hex()[:64]
+    obj_sig["M1"] = merkle_root.hex()[64:]
+
+    b0 = BitArray(int(obj_sig["M0"], 16).to_bytes(32, "big")).bin
+    b1 = BitArray(int(obj_sig["M1"], 16).to_bytes(32, "big")).bin
+
+    obj_sig["context"] = b0 + b1
+    
+    obj["signature"] = obj_sig
+
+    return obj_sig,obj
 
 #convert signature in a Zokrates-friendly shape
 def write_sig(pk, sig, msg):
@@ -101,10 +140,15 @@ sub = data["sub"]
 cf = data["cf"]
 nationality = data["nationality"]
 
-v = generate_credential(iss,sub,cf,nationality)
+v,export = generate_credential(iss,sub,cf,nationality)
 
 print(v)
+print(export)
 
 #export generated verifiable credential
 with open('jwt.json', 'w') as outfile:
     json.dump(v, outfile, indent=4, sort_keys=True)
+
+#export zokrates circuit input parameters
+with open('params.json', 'w') as outfile2:
+    json.dump(export, outfile2, indent=4, sort_keys=True)
