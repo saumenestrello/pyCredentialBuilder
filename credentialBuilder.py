@@ -41,30 +41,36 @@ def generate_signature(p):
     #leaf3 = hashlib.sha512(p["sub"].encode("utf-8")).hexdigest()
     #leaf4 = hashlib.sha512(p["iss"].encode("utf-8")).hexdigest()
 
+    #claim keys
     leaf1_key = "cf:"
     leaf2_key = "nationality:"
     leaf3_key = "sub:"
     leaf4_key = "iss:"
 
+    #plaintxt leaves
     leaf1_plaintxt = leaf1_key + p["csu"]["cf"]
     leaf2_plaintxt = leaf2_key + p["csu"]["nationality"]
     leaf3_plaintxt = leaf3_key + p["sub"]
     leaf4_plaintxt = leaf4_key + p["iss"]
-    
+
+    #hashed leaves
     leaf1 = hashlib.sha512(leaf1_plaintxt.encode("utf-8")).hexdigest()
     leaf2 = hashlib.sha512(leaf2_plaintxt.encode("utf-8")).hexdigest()
     leaf3 = hashlib.sha512(leaf3_plaintxt.encode("utf-8")).hexdigest()
     leaf4 = hashlib.sha512(leaf4_plaintxt.encode("utf-8")).hexdigest()
-    
+
+    #tree lvl 1
     subtree1 = hashlib.sha512(leaf1.encode("utf-8")+leaf2.encode("utf-8")).hexdigest()
     subtree2 = hashlib.sha512(leaf3.encode("utf-8")+leaf4.encode("utf-8")).hexdigest()
 
     merkle_root = hashlib.sha512(subtree1.encode("utf-8")+subtree2.encode("utf-8")).digest()
 
+    #sign merkle root
     key = FQ(1997011358982923168928344992199991480689546837621580239342656433234255379025)
     sk = PrivateKey(key)
     sig = sk.sign(merkle_root)
 
+    #verify signature
     pk = PublicKey.from_private(sk)
     is_verified = pk.verify(sig, merkle_root)
     print(is_verified)
@@ -74,7 +80,7 @@ def generate_signature(p):
 
     sig_to_export = write_sig(pk,sig,merkle_root)
 
-    #export parameters for rapid proof generation
+    #export zokrates circuit inputs
     obj = {}
     obj_pk = {}
     obj_sig = {}
