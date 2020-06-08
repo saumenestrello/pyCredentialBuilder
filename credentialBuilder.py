@@ -31,10 +31,10 @@ def generate_credential(iss,sub,cf,nationality):
     #build credential
     vc["payload"] = p
     vc["header"] = h
-    s,export = generate_signature(p)
+    s,export,inputObj = generate_signature(p)
     vc["signature"] = s
 
-    return vc,export
+    return vc,export,inputObj
    
 #generate EdDSA signature of the merkle root derived from the claims cf,nationality,sub and iss
 def generate_signature(p):
@@ -98,8 +98,8 @@ def generate_signature(p):
     obj["pk"] = obj_pk
     #obj["treeDepth"] = 2
     obj["merkleRoot"] = hashlib.sha512(subtree1.encode("utf-8")+subtree2.encode("utf-8")).hexdigest()
-    obj["leafKey"] = hashlib.sha512(leaf1_key.encode("utf-8")).hexdigest()
-    obj["leafValue"] = hashlib.sha512(p["csu"]["cf"].encode("utf-8")).hexdigest()
+    obj["leafKey"] = leaf1_key
+    obj["leafValue"] = leaf1_value
     #obj["directionSelector"] = 0
     obj["pathDigest0"] = subtree2
 
@@ -131,7 +131,21 @@ def generate_signature(p):
     vcSignature["R"] = sig_R.__str__()
     vcSignature["S"] = sig_S.__str__()
 
-    return vcSignature,obj
+    #generate zokrates input ABI-like file
+    inputObj = []
+    inputObj.append(obj["leafKey"])
+    inputObj.append(obj["leafValue"])
+    inputObj.append(str(sig_R.x) + " " + str(sig_R.y))
+    inputObj.append(vcSignature["S"])
+    inputObj.append(str(obj_A["x"]) + " " + str(obj_A["y"]))
+    inputObj.append(obj_sig["M0"])
+    inputObj.append(obj_sig["M1"])
+    inputObj.append(obj_sig["context"])
+    inputObj.append(obj["merkleRoot"])
+    inputObj.append(leaf2)
+    inputObj.append(subtree2)
+
+    return vcSignature,obj,inputObj
 
 #convert signature in a Zokrates-friendly shape
 def write_sig(pk, sig, msg):
@@ -159,7 +173,7 @@ sub = data["sub"]
 cf = data["cf"]
 nationality = data["nationality"]
 
-v,export = generate_credential(iss,sub,cf,nationality)
+v,export,inputObj = generate_credential(iss,sub,cf,nationality)
 
 print(v)
 print(export)
@@ -168,6 +182,10 @@ print(export)
 with open('jwt.json', 'w') as outfile:
     json.dump(v, outfile, indent=4, sort_keys=True)
 
-#export zokrates circuit input parameters
+#export readable zokrates circuit input parameters 
 with open('params.json', 'w') as outfile2:
     json.dump(export, outfile2, indent=4, sort_keys=True)
+
+#export zokrates circuit input parameters
+with open('input.json', 'w') as outfile3:
+    json.dump(inputObj, outfile3, indent=4, sort_keys=True)
