@@ -15,17 +15,20 @@ def generate_credential(iss,sub,cf,nationality):
     p = {} #payload
     h = {} #header
     pr = {} #proof
-    
-    csu = {}
+    csu = {} #csu
+
+    #build payload 
     p["iss"] = iss
     p["sub"] = sub
     csu["cf"] = cf
     csu["nationality"] = nationality
     p["csu"] = csu
 
+    #build header
     h["typ"] = "JWT"
     h["alg"] = "EDDSA"
 
+    #build credential
     vc["payload"] = p
     vc["header"] = h
     s,export = generate_signature(p)
@@ -36,28 +39,33 @@ def generate_credential(iss,sub,cf,nationality):
 #generate EdDSA signature of the merkle root derived from the claims cf,nationality,sub and iss
 def generate_signature(p):
 
-    #leaf1 = hashlib.sha512(p["csu"]["cf"].encode("utf-8")).hexdigest()
-    #leaf2 = hashlib.sha512(p["csu"]["nationality"].encode("utf-8")).hexdigest()
-    #leaf3 = hashlib.sha512(p["sub"].encode("utf-8")).hexdigest()
-    #leaf4 = hashlib.sha512(p["iss"].encode("utf-8")).hexdigest()
-
-    #claim keys
-    leaf1_key = "cf:"
-    leaf2_key = "nationality:"
-    leaf3_key = "sub:"
-    leaf4_key = "iss:"
+    #keys
+    leaf1_key = hashlib.sha512("cf:".encode("utf-8")).hexdigest()
+    leaf2_key = hashlib.sha512("nationality:".encode("utf-8")).hexdigest()
+    leaf3_key = hashlib.sha512("sub:".encode("utf-8")).hexdigest()
+    leaf4_key = hashlib.sha512("iss:".encode("utf-8")).hexdigest()
 
     #plaintxt leaves
-    leaf1_plaintxt = leaf1_key + p["csu"]["cf"]
-    leaf2_plaintxt = leaf2_key + p["csu"]["nationality"]
-    leaf3_plaintxt = leaf3_key + p["sub"]
-    leaf4_plaintxt = leaf4_key + p["iss"]
+    #leaf1_plaintxt = leaf1_key + p["csu"]["cf"]
+    #leaf2_plaintxt = leaf2_key + p["csu"]["nationality"]
+    #leaf3_plaintxt = leaf3_key + p["sub"]
+    #leaf4_plaintxt = leaf4_key + p["iss"]
+
+    leaf1_value = hashlib.sha512(p["csu"]["cf"].encode("utf-8")).hexdigest()
+    leaf2_value = hashlib.sha512(p["csu"]["nationality"].encode("utf-8")).hexdigest()
+    leaf3_value = hashlib.sha512(p["sub"].encode("utf-8")).hexdigest()
+    leaf4_value = hashlib.sha512(p["iss"].encode("utf-8")).hexdigest()
 
     #hashed leaves
-    leaf1 = hashlib.sha512(leaf1_plaintxt.encode("utf-8")).hexdigest()
-    leaf2 = hashlib.sha512(leaf2_plaintxt.encode("utf-8")).hexdigest()
-    leaf3 = hashlib.sha512(leaf3_plaintxt.encode("utf-8")).hexdigest()
-    leaf4 = hashlib.sha512(leaf4_plaintxt.encode("utf-8")).hexdigest()
+    #leaf1 = hashlib.sha512(leaf1_plaintxt.encode("utf-8")).hexdigest()
+    #leaf2 = hashlib.sha512(leaf2_plaintxt.encode("utf-8")).hexdigest()
+    #leaf3 = hashlib.sha512(leaf3_plaintxt.encode("utf-8")).hexdigest()
+    #leaf4 = hashlib.sha512(leaf4_plaintxt.encode("utf-8")).hexdigest()
+
+    leaf1 = hashlib.sha512((leaf1_key+leaf1_value).encode("utf-8")).hexdigest()
+    leaf2 = hashlib.sha512((leaf2_key+leaf2_value).encode("utf-8")).hexdigest()
+    leaf3 = hashlib.sha512((leaf3_key+leaf3_value).encode("utf-8")).hexdigest()
+    leaf4 = hashlib.sha512((leaf4_key+leaf4_value).encode("utf-8")).hexdigest()
 
     #tree lvl 1
     subtree1 = hashlib.sha512(leaf1.encode("utf-8")+leaf2.encode("utf-8")).hexdigest()
@@ -76,7 +84,7 @@ def generate_signature(p):
     print(is_verified)
 
     path = 'zokrates_inputs.txt'
-    #write_signature_for_zokrates_cli(pk, sig, merkle_root, path)
+    write_signature_for_zokrates_cli(pk, sig, merkle_root, path)
 
     sig_to_export = write_sig(pk,sig,merkle_root)
 
@@ -88,10 +96,11 @@ def generate_signature(p):
     obj_pk["x"] = str(pk.p.x)
     obj_pk["y"] = str(pk.p.y) 
     obj["pk"] = obj_pk
-    obj["treeDepth"] = 2
+    #obj["treeDepth"] = 2
     obj["merkleRoot"] = hashlib.sha512(subtree1.encode("utf-8")+subtree2.encode("utf-8")).hexdigest()
-    obj["leafDigest"] = leaf1
-    obj["directionSelector"] = 0
+    obj["leafKey"] = hashlib.sha512(leaf1_key.encode("utf-8")).hexdigest()
+    obj["leafValue"] = hashlib.sha512(p["csu"]["cf"].encode("utf-8")).hexdigest()
+    #obj["directionSelector"] = 0
     obj["pathDigest0"] = subtree2
 
     sig_R, sig_S = sig
@@ -118,7 +127,11 @@ def generate_signature(p):
     
     obj["signature"] = obj_sig
 
-    return obj_sig,obj
+    vcSignature = {}
+    vcSignature["R"] = sig_R.__str__()
+    vcSignature["S"] = sig_S.__str__()
+
+    return vcSignature,obj
 
 #convert signature in a Zokrates-friendly shape
 def write_sig(pk, sig, msg):
